@@ -1,0 +1,41 @@
+* 8 clocks, arranged as 8-bit counter
+* start with 10ns period
+* for CSCI 50.02, pulse ranges have been changed to [0, 5]
+Vclk1 clk1 0 pulse(0,5,4.9ns,.1ns,.1ns,4.9ns)
+Vclk2 clk2 0 pulse(0,5,9.9ns,.1ns,.1ns,9.9ns)
+Vclk3 clk3 0 pulse(0,5,19.9ns,.1ns,.1ns,19.9ns)
+Vclk4 clk4 0 pulse(0,5,39.9ns,.1ns,.1ns,39.9ns)
+Vclk5 clk5 0 pulse(0,5,79.9ns,.1ns,.1ns,79.9ns)
+Vclk6 clk6 0 pulse(0,5,159.9ns,.1ns,.1ns,159.9ns)
+Vclk7 clk7 0 pulse(0,5,319.9ns,.1ns,.1ns,319.9ns)
+Vclk8 clk8 0 pulse(0,5,639.9ns,.1ns,.1ns,639.9ns)
+
+* for CSCI 50.02, inverted clocks are provided for convenience
+Vnclk1 nclk1 0 pulse(5,0,4.9ns,.1ns,.1ns,4.9ns)
+Vnclk2 nclk2 0 pulse(5,0,9.9ns,.1ns,.1ns,9.9ns)
+Vnclk3 nclk3 0 pulse(5,0,19.9ns,.1ns,.1ns,19.9ns)
+Vnclk4 nclk4 0 pulse(5,0,39.9ns,.1ns,.1ns,39.9ns)
+Vnclk5 nclk5 0 pulse(5,0,79.9ns,.1ns,.1ns,79.9ns)
+Vnclk6 nclk6 0 pulse(5,0,159.9ns,.1ns,.1ns,159.9ns)
+Vnclk7 nclk7 0 pulse(5,0,319.9ns,.1ns,.1ns,319.9ns)
+Vnclk8 nclk8 0 pulse(5,0,639.9ns,.1ns,.1ns,639.9ns)
+
+*.tran 1280ns
+*.plot clk1
+*.plot clk2
+*.plot clk3
+*.plot clk4
+*.plot clk5
+*.plot clk6
+*.plot clk7
+*.plot clk8
+*.plot clk[8:1]
+*.plot nclk1
+*.plot nclk2
+*.plot nclk3
+*.plot nclk4
+*.plot nclk5
+*.plot nclk6
+*.plot nclk7
+*.plot nclk8
+*.plot nclk[8:1]
