@@ -37,16 +37,26 @@
 * "Define a .subckt named ''fx'' for the function OUT = AB + CDE + FG"
 *
 * Description:
-* We begin with double-negating the whole equation at the start. Since !!X = X, nothing is affected at this stage.
+* We begin with double-negating the whole equation at the start. Since !!X = X,
+* nothing is affected at this stage.
 * !!(AB + CDE + FG)
-* By doing this, we are setting up De Morgan's Laws which allows us to inverted the whole circuit and utilize NAND circuits.
-* However, we will only do this with the first negation (!) we added.
+*
+* By doing this, we are setting up De Morgan's Laws which allows us to inverted
+* the whole circuit and utilize NAND circuits. However, we will only do this
+* with the first negation (!) we added.
 * !(!(AB) * !(CDE) * !(FG))
-* From here, we have the circuit as its simplest. As, for example, X1 is !(AB) which is equivalent to NAND(A,B).
-* The same applies to X2 and X3. This allows us to use only NANDs for X1, X2, and X3.
-* For X4 below, it can be read as !( X1 * X2 * X3) which is another 3 input NAND.
-* Utilizing NANDs here provides us with the solution utilizing the fewest transistors.
-* Analyzing the circuit without De Morgan's would lead us to think and utilize AND and ORs when designing this solution, resulting in more 'transistors' being used.
+*
+* From here, we have the circuit as its simplest. As, for example, X1 is !(AB)
+* which is equivalent to NAND(A,B). The same applies to X2 and X3. This allows
+* us to use only NANDs for X1, X2, and X3.
+*
+* For X4 below, it can be read as !( X1 * X2 * X3) which is another 3 input
+* NAND. Utilizing NANDs here provides us with the solution utilizing the fewest
+* transistors.
+*
+* Analyzing the circuit without De Morgan's would lead us to think and utilize
+* AND and ORs when designing this solution, resulting in more 'transistors'
+* being used.
 *******************************************************************************
 
 .subckt fx a b c d e f g out
@@ -67,8 +77,8 @@ Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 out fx
 * Sum = A xor B xor C_in
 * C_out = AB + AC_in + BC_in or AB + C_in(A xor B)
 * For the purposes of our expalantion, we will use the 2nd one for C_out.
-* Having worked with half-adders before, that Sum is equivalent to a half adder xor C_in.
-* The half adder would be the A xor B part of the Sum.
+* Having worked with half-adders before, that Sum is equivalent to a half adder
+* xor C_in. The half adder would be the A xor B part of the Sum.
 *
 * During this process, we designed a version of the solution for NAND and XOR.
 * While designing the 2 versions, we noted that we needed 4 NANDs to replicate an XOR.
@@ -92,12 +102,12 @@ Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 out fx
 * X2 a n1 n2 nand2
 * X3 b n1 n3 nand2
 * X4 n2 n3 n4 nand2
-
+*
 * X5 n4 carry_in n5 nand2
 * X6 n4 n5 n6 nand2
 * X7 carry_in n5 n7 nand2
 * X8 n6 n7 sum nand2
-
+*
 * X9 n1 n5 carry nand2
 * .ends
 *

@@ -1,0 +1,117 @@
+*******************************************************************************
+* All lines that begin with * are comments. You may safely remove them for your
+* own submissions, but as with any programming exercise, please put in your own
+* comments to explain your code!
+*
+* In your own submissions, make sure to replace this comment block with your
+* names, in the following format:
+*
+* LAB #2
+* Team Turbo Granny
+* - Ayase, Momo
+* - Shiratori, Aira
+* - Takakura, Ken
+*
+* Make sure your names are in alphabetical order, Last Name before First Name.
+* You will get deductions if you don't strictly follow this format.
+*******************************************************************************
+
+
+*******************************************************************************
+* The following .include lines are necessary for all your CSCI 50.02 JSim
+* exercises. These work like your Java import statement.
+*******************************************************************************
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+
+*******************************************************************************
+* What follows is a (one-line) statement that describes our first "Hello
+* World!" circuit. This statement is in the form:
+*
+*   Xid a z inverter
+*
+* Xid is just the name we give to this circuit block (in this case, Xinv).
+* a is an input node ("clk1" is a 10ns-period clock defined in 8clocks.jsim).
+* z is an output node (the name "out" is just something we made up).
+* inverter is the type of subcircuit that we want (defined in stdcell.jsim).
+*******************************************************************************
+* Blueprint for fx: OUT = AB + CDE + FG
+.subckt fx a b c d e f g out
+* Step 1: Compute AB using an AND gate
+Xand1 a b term1 and2
+
+* Step 2: Compute CDE using a 3-input AND gate
+Xand2 c d e term2 and3
+
+* Step 3: Compute FG using an AND gate
+Xand3 f g term3 and2
+
+* Step 4: Add all the terms together using OR gates to get the final output
+Xor1 term1 term2 intermediate_or or2
+Xor2 intermediate_or term3 out or2
+.ends
+
+* Blueprint for the Full-Adder (fa)
+.subckt fa a b carry_in sum carry
+* Compute the sum bit: A XOR B XOR Carry_In
+Xxor1 a b xor_ab xor2
+Xxor2 xor_ab carry_in sum xor2
+
+* Compute the carry-out bit: (A AND B) OR (Carry_In AND (A XOR B))
+Xand_ab a b term_ab and2
+Xand_c xor_ab carry_in term_c and2
+Xor_carry term_ab term_c carry or2
+.ends
+
+* Create function circuit and connect it to clocks 1 through 7
+Xmy_fx clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT fx
+
+* Create full adder circuit and connect it to clocks 1 through 3
+Xmy_fa clk1 clk2 clk3 sum carry fa
+*******************************************************************************
+* The circuit above does NOT display anything in the simulator. We tell JSim
+* to display something via .tran and .plot commands. The .tran statement
+* specifies the period of time (the "transient") that we want to plot.
+* Afterwards, we just .plot the nodes that we are interested in.
+*
+* In this example, we plot the input and the output of the Xinv circuit in two
+* separate "plot channels". (You can plot both signals in one channel by saying
+* ".plot clk1 out" instead, but it will be hard to see any overlaps in signal.)
+*******************************************************************************
+
+.tran 1280ns
+.plot clk1
+.plot clk2
+.plot clk3
+.plot clk4
+.plot clk5
+.plot clk6
+.plot clk7
+.plot OUT
+.plot sum
+.plot carry
+
+
+*******************************************************************************
+* To actually see these plots, click the "Gate-level Simulation" button on the
+* toolbar (fourth button from the right, the one that looks like an AND gate).
+* This opens a separate Plot Window.
+*
+* While these .jsim files need to be opened in JSim to perform the simulations,
+* we HIGHLY recommend that you edit these files in a full-fledged text editor
+* instead of from within JSim's own editor, because the JSim editor does NOT
+* have undo/redo functions. I personally recommend Visual Studio Code:
+*
+*   https://code.visualstudio.com/
+*
+* Then, when you want to see your changes on the Plot Window, simply click the
+* "Reload Files" button (the button with the green looping arrows on a sheet of
+* paper), then re-simulate by clicking the "Gate-level Simulation" button (the
+* Plot Window has its own). It is NOT enough to click just one of the two
+* buttons -- you have to click Reload, then Simulation, in that order!
+*
+* Happy hacking! - eric
+*******************************************************************************
