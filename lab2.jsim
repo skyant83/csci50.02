@@ -1,25 +1,17 @@
 *******************************************************************************
-* All lines that begin with * are comments. You may safely remove them for your
-* own submissions, but as with any programming exercise, please put in your own
-* comments to explain your code!
-*
-* In your own submissions, make sure to replace this comment block with your
-* names, in the following format:
-*
 * LAB #2
 * Team Cooked, Not Cooking
 * - Badiola, Enrique Gabriel
-* - Shiratori, Aira
-* - Takakura, Ken
-*
-* Make sure your names are in alphabetical order, Last Name before First Name.
-* You will get deductions if you don't strictly follow this format.
+* - Paras, Riva Kaitleen
+* - Sy, Cynric Wencarll
 *******************************************************************************
 
 
 *******************************************************************************
 * The following .include lines are necessary for all your CSCI 50.02 JSim
 * exercises. These work like your Java import statement.
+*
+* TL;DR: Import area, do not touch.
 *******************************************************************************
 
 .include "8clocks.jsim"
@@ -28,6 +20,8 @@
 
 
 *******************************************************************************
+* Reference Guide:
+* 
 * What follows is a (one-line) statement that describes our first "Hello
 * World!" circuit. This statement is in the form:
 *
@@ -39,20 +33,75 @@
 * inverter is the type of subcircuit that we want (defined in stdcell.jsim).
 *******************************************************************************
 
-* Xinv clk1 out inverter
-
-* AB + CDE + FG
+*******************************************************************************
+* "Define a .subckt named ''fx'' for the function OUT = AB + CDE + FG"
+* 
+* Description:
+* We begin with double-negating the whole equation at the start. Since !!X = X, nothing is affected at this stage.
 * !!(AB + CDE + FG)
+* By doing this, we are setting up De Morgan's Laws which allows us to inverted the whole circuit and utilize NAND circuits.
+* However, we will only do this with the first negation (!) we added.
 * !(!(AB) * !(CDE) * !(FG))
-.subckt fx a b c d e f g out
-X1 a b n_ab nand2
-X2 c d e n_cde nand3
-X3 f g n_fg nand2
+* From here, we have the circuit as its simplest. As, for example, X1 is !(AB) which is equivalent to NAND(A,B). 
+* The same applies to X2 and X3. This allows us to use only NANDs for X1, X2, and X3. 
+* For X4 below, it can be read as !( X1 * X2 * X3) which is another 3 input NAND.
+* Utilizing NANDs here provides us with the solution utilizing the fewest transistors.
+* Analyzing the circuit without De Morgan's would lead us to think and utilize AND and ORs when designing this solution, resulting in more 'transistors' being used.
+*******************************************************************************
 
-X4 n_ab n_cde n_fg out nand3
+.subckt fx a b c d e f g out
+X1  a b     n_ab    nand2
+X2  c d e   n_cde   nand3
+X3  f g     n_fg    nand2
+
+X4  n_ab n_cde n_fg out nand3
 .ends
 
 Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 out fx
+
+*******************************************************************************
+* "Define a .subckt named 'fa' for a full adder circuit"
+* 
+* Description:
+* In designing a full adder, we know that the following must be present:
+* Sum = A xor B xor C_in
+* C_out = AB + AC_in + BC_in or AB + C_in(A xor B)
+* For the purposes of our expalantion, we will use the 2nd one for C_out.
+* Having worked with half-adders before, that Sum is equivalent to a half adder xor C_in.
+* The half adder would be the A xor B part of the Sum.
+*
+* During this process, we designed a version of the solution for NAND and XOR.
+* While designing the 2 versions, we noted that we needed 4 NANDs to replicate an XOR.
+* For A xor B, we'd need to make NAND((nand(a, nand(A,B)), (nand(n, nand(A,B))).
+* Looking back at the previous lab, we know that a xor2 would use 12 mosfets.
+* For the case of nand, we know a nand2 uses 4 mosfets.
+* For just A XOR B, we'd be looking at 16 (4 instances of nand2) over the 12 of XOR.
+* The version of the circuit we designed using NANDs had 9 total NANDs used (totaling to 36 mosfets).
+* For the XOR version, we utilized 2 XORs and 3 NANDs (totaling to 36).
+* Mosfet usage wise, they are identical by the end.
+*
+* In the end, we decided to go with XOR because it uses lets gates
+* Although utilizing the same MOSFETs by the end, XOR utilizies less gates.
+* Utilizing only 5 vesus the NAND versions' 9, we'd be cutting out 4 more.
+* It makes it an easier design to verify and construct, thus debug, over the multiple moving parts the NAND version does.
+*
+* For your convenience, the NAND version is included but commented out below:
+*
+* .subckt fa2 a b carry_in sum carry
+* X1 a b n1 nand2
+* X2 a n1 n2 nand2
+* X3 b n1 n3 nand2
+* X4 n2 n3 n4 nand2
+
+* X5 n4 carry_in n5 nand2
+* X6 n4 n5 n6 nand2
+* X7 carry_in n5 n7 nand2
+* X8 n6 n7 sum nand2
+
+* X9 n1 n5 carry nand2
+* .ends
+*
+*******************************************************************************
 
 .subckt fa a b carry_in sum carry
 X1 a b xor_ xor2
@@ -63,22 +112,7 @@ X4 xor_ carry_in n_xor1_carry_in nand2
 X5 n_ab n_xor1_carry_in carry nand2
 .ends
 
-.subckt fa2 a b carry_in sum carry
-X1 a b n1 nand2
-X2 a n1 n2 nand2
-X3 b n1 n3 nand2
-X4 n2 n3 n4 nand2
-
-X5 n4 carry_in n5 nand2
-X6 n4 n5 n6 nand2
-X7 carry_in n5 n7 nand2
-X8 n6 n7 sum nand2
-
-X9 n1 n5 carry nand2
-.ends
-
 Xfa clk1 clk2 clk3 sum carry fa
-Xfa2 clk1 clk2 clk3 sum2 carry2 fa2
 
 *******************************************************************************
 * The circuit above does NOT display anything in the simulator. We tell JSim
