@@ -112,7 +112,7 @@ Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 out fx
 *
 *******************************************************************************
 
-.subckt fa2 a b carry_in sum carry
+.subckt fa a b carry_in sum carry
 X1 a b n1 nand2
 X2 a n1 n2 nand2
 X3 b n1 n3 nand2
@@ -126,7 +126,7 @@ X8 n6 n7 sum nand2
 X9 n1 n5 carry nand2
 .ends
 
-Xfa2 clk1 clk2 clk3 sum2 carry2 fa2
+Xfa clk1 clk2 clk3 sum2 carry2 fa
 
 *******************************************************************************
 * The circuit above does NOT display anything in the simulator. We tell JSim
