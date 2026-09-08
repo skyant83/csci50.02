@@ -90,39 +90,43 @@ Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 out fx
 * For the XOR version, we utilized 2 XORs and 3 NANDs (totaling to 36).
 * Mosfet usage wise, they are identical by the end.
 *
-* In the end, we decided to go with XOR because it uses lets gates
-* Although utilizing the same MOSFETs by the end, XOR utilizies less gates.
-* Utilizing only 5 vesus the NAND versions' 9, we'd be cutting out 4 more.
-* It makes it an easier design to verify and construct, thus debug, over the multiple moving parts the NAND version does.
+* In the end, we decided to go with NAND due to the speed at which information is processed.
+* Utilizing the quickref.pdf as a guide, we can see that the tpd and tcd of NAND and XOR are as follows:
+* NAND: tpd = 0.03, tcd = 0.01
+* XOR: tpd = 0.14, tcd = 0.03
+* Comparing the 2's tpd's, XOR takes 4x longer than NAND to settle after an input change.
+* Comparing the 2's tcd's, XOR takes 3x longer than NAND before an output starts changing.
+* While small and NAND having 3 steps to go through, XOR is slower and has a longer period to allow a messed up result.
+* In a small simulation like this, it won't be most noticeable but utilized on a larger scale, these values compound and pose noticeable risks.
+* These risks being in relation to potentially invalid inputs or even disruption.
+* For your convenience, the XOR version is included but commented out below:
 *
-* For your convenience, the NAND version is included but commented out below:
-*
-* .subckt fa2 a b carry_in sum carry
-* X1 a b n1 nand2
-* X2 a n1 n2 nand2
-* X3 b n1 n3 nand2
-* X4 n2 n3 n4 nand2
-*
-* X5 n4 carry_in n5 nand2
-* X6 n4 n5 n6 nand2
-* X7 carry_in n5 n7 nand2
-* X8 n6 n7 sum nand2
-*
-* X9 n1 n5 carry nand2
+* .subckt fa a b carry_in sum carry
+* X1 a b xor_ xor2
+* X2 xor_ carry_in sum xor2
+
+* X3 a b n_ab nand2
+* X4 xor_ carry_in n_xor1_carry_in nand2
+* X5 n_ab n_xor1_carry_in carry nand2
 * .ends
 *
 *******************************************************************************
 
-.subckt fa a b carry_in sum carry
-X1 a b xor_ xor2
-X2 xor_ carry_in sum xor2
+.subckt fa2 a b carry_in sum carry
+X1 a b n1 nand2
+X2 a n1 n2 nand2
+X3 b n1 n3 nand2
+X4 n2 n3 n4 nand2
 
-X3 a b n_ab nand2
-X4 xor_ carry_in n_xor1_carry_in nand2
-X5 n_ab n_xor1_carry_in carry nand2
+X5 n4 carry_in n5 nand2
+X6 n4 n5 n6 nand2
+X7 carry_in n5 n7 nand2
+X8 n6 n7 sum nand2
+
+X9 n1 n5 carry nand2
 .ends
 
-Xfa clk1 clk2 clk3 sum carry fa
+Xfa2 clk1 clk2 clk3 sum2 carry2 fa2
 
 *******************************************************************************
 * The circuit above does NOT display anything in the simulator. We tell JSim
