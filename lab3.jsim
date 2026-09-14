@@ -1,5 +1,5 @@
 *******************************************************************************
-* LAB #2
+* LAB #3
 * Team Cooked, Not Cooking
 * - Badiola, Enrique Gabriel
 * - Paras, Riva Kaitleen
@@ -20,17 +20,7 @@
 
 
 *******************************************************************************
-* Reference Guide:
-*
-* What follows is a (one-line) statement that describes our first "Hello
-* World!" circuit. This statement is in the form:
-*
-*   Xid a z inverter
-*
-* Xid is just the name we give to this circuit block (in this case, Xinv).
-* a is an input node ("clk1" is a 10ns-period clock defined in 8clocks.jsim).
-* z is an output node (the name "out" is just something we made up).
-* inverter is the type of subcircuit that we want (defined in stdcell.jsim).
+* One-bit full adder built only from non-composite nand2 cells.
 *******************************************************************************
 
 .subckt fa a b carry_in sum carry_out
@@ -47,43 +37,59 @@ X8 n6 n7 sum nand2
 X9 n1 n5 carry_out nand2
 .ends
 
-* Xfa clk1 clk2 clk3 sum2 carry2 fa
 
-.subckt itemA itemB join 
-.connect itemA itemB
-.ends 
+.subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
+.connect cin0 carry0
 
+Xfa a[31:0] b[31:0] carry[31:0] sum[31:0] carry[32:1] fa
 
-.subckt add32 A[31:0] B[31:0] cin0 sum[31:0] cout[32:31]
-Xjcin0c0 cin0 carry0 join 
-Xadd A[31:0] B[31:0] carry[31:0] sum[31:0] carry[32:1] fa
-Xjc31co31 carry31 cout31 join 
-Xjc32co32 carry32 cout32 join 
+.connect carry32 cout31
+.connect carry31 cout30
+
 .ends
 
 
+*******************************************************************************
+* Instantiate the 32-bit ripple-carry adder with no initial carry-in.
+*******************************************************************************
+
+Xsum a[31:0] b[31:0] 0 sum[31:0] c31 c30 add32
+
 
 *******************************************************************************
-* The circuit above does NOT display anything in the simulator. We tell JSim
-* to display something via .tran and .plot commands. The .tran statement
-* specifies the period of time (the "transient") that we want to plot.
-* Afterwards, we just .plot the nodes that we are interested in.
+* Required test cases, in order:
+*   0x00000000 + 0x00000000 = 0x00000000
+*   0x55555555 + 0x00000000 = 0x55555555
+*   0x00000000 + 0x55555555 = 0x55555555
+*   0x55555555 + 0x55555555 = 0xAAAAAAAA
+*   0xFFFFFFFF + 0xFFFFFFFF = 0xFFFFFFFE
+*   0xAAAAAAAA + 0x00000000 = 0xAAAAAAAA
+*   0x00000000 + 0xAAAAAAAA = 0xAAAAAAAA
+*   0xAAAAAAAA + 0xAAAAAAAA = 0x55555554
+*   0x00000001 + 0xFFFFFFFF = 0x00000000
+*   0xFFFFFFFF + 0x00000001 = 0x00000000
 *
-* In this example, we plot the input and the output of the Xinv circuit in two
-* separate "plot channels". (You can plot both signals in one channel by saying
-* ".plot clk1 out" instead, but it will be hard to see any overlaps in signal.)
+* The last two test cases have a long transition delay because they create a
+* worst-case carry-propagate path through the 32-bit ripple-carry adder. Bit 0
+* generates a carry, while bits 1 through 31 must use the carry produced by the
+* preceding stage. Each affected sum therefore cannot settle until the required
+* carry reaches it.
+*
+* 0xFFFFFFFF + 0xFFFFFFFF behaves differently. Since both operand bits are 1
+* at every stage, each full adder generates a carry-out of 1 independently of
+* its carry-in. These carries can be generated in parallel instead of traveling
+* sequentially through all 32 stages.
 *******************************************************************************
 
-.tran 1000ns
-.plot clk1
-.plot clk2
-.plot clk3
-.plot clk4
-.plot clk5
-.plot clk6
-.plot clk7
-.plot _
-.plot out
-.plot _
-.plot sum
-.plot carry
+Wa a[31:0] nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
++ 0x00000000 0x55555555 0x00000000 0x55555555 0xFFFFFFFF 0xAAAAAAAA 0x00000000 0xAAAAAAAA 0x00000001 0xFFFFFFFF
+
+Wb b[31:0] nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
++ 0x00000000 0x00000000 0x55555555 0x55555555 0xFFFFFFFF 0x00000000 0xAAAAAAAA 0xAAAAAAAA 0xFFFFFFFF 0x00000001
+
+.tran 200ns
+.plot a[31:0]
+.plot b[31:0]
+.plot sum[31:0]
+.plot c30
+.plot c31
