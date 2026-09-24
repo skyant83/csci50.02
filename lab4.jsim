@@ -1,0 +1,115 @@
+*******************************************************************************
+* As with the previous labs, replace this header comment using the following
+* format. (Team name, then members in "Last Name, First Name" format sorted
+* by last name.)
+*
+* LAB #4
+* The Phantom Thieves
+* - Amamiya, Ren
+* - Sakamoto, Ryuji
+* - Takamaki, Ann
+*******************************************************************************
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+*******************************************************************************
+* Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
+*******************************************************************************
+.subckt fa a b c_in sum c_out
+  ********
+  * Replace these comments with your code.
+  ********
+.ends
+
+.subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
+  ********
+  * Replace these comments with your code.
+  * Strictly follow the order of the operands here, or you may have trouble
+  * for later circuits!
+  ********
+.ends
+
+*******************************************************************************
+* Your new counter32 subcircuit code should go here.
+*******************************************************************************
+.subckt counter32 reset a[31:0] f[31:0] clk
+  ********
+  * Replace these comments with your code.
+  ********
+.ends
+
+*******************************************************************************
+* Pitfall: DON'T use numbers AND iterators in your node names at the same time,
+*          e.g., temp[31:0] and temp2[31:0] will result in conflicts!
+*
+* Also, you may need to use these statements when making your own counter32:
+*
+* .connect node othernode(s)...
+*  = connects the first node to all the subsequent nodes
+*    - For example, ".connect a b[31:0]" connects a to b31, b30, ..., b0.
+*    - You can also connect nodes directly to ground ("false") by saying
+*      ".connect 0 othernode(s)..."
+*    - You can also connect nodes directly to vdd ("true") by saying
+*      ".connect vdd othernode(s)..."
+*
+* Xid s d0 d1 z mux2
+*  = "mux2" defines a 2-way multiplexer circuit.
+*    - If s = 0, node z is set to the value of node d0.
+*    - If s = 1, node z is set to the value of node d1.
+*    - s, d0, d1 and z are SINGLE BITS. As usual, use iterators to create
+*      several multiplexers at once.
+*    - Note that the reset node of your counter32 is only a single bit
+*      (NOT 32 bits), so to use it with multiple multiplexers, use the form
+*      "node#n" to make n copies of the node, e.g., "reset#32".
+*
+* Xid d clk q dreg
+*  = "dreg" defines a flip-flop register q (a single bit of "memory") and sets
+*    it to the value of another node, d.
+*    - Unlike "connect"-ing nodes, the value only gets stored into q when clk
+*      is doing a rising transition (also known as a "positive edge trigger").
+*    - Hint: You will also need iteration for this since we need a 32-bit
+*      register, which means you will also need to make 32 copies of clk.
+*******************************************************************************
+
+*******************************************************************************
+* Finally, it's time to simulate.
+* This circuit block instantiates the counter32 circuit that you just wrote.
+* We pass it a single-bit reset signal, a 32-bit increment value, a 32-bit
+* register, and a clock signal (we just used the JSim-predefined clk1).
+*******************************************************************************
+Xcounter32 reset incr[31:0] reg[31:0] clk1 counter32
+
+*******************************************************************************
+* This "reset" waveform sets up a reset signal that has a delayed start
+* and then goes to the next value every 50ns.
+* The values "1 0 0 0 1 0" indicate that the reset signal only turns on twice.
+* (But at which times?)
+*******************************************************************************
+Wreset reset nrz(0, 5, 50ns, 14.8ns, 0.001ns, 0.001ns)
++ 1 0 0 0 1 0
+
+*******************************************************************************
+* This "incr" waveform sets up a increment value for your counter32 circuit.
+* Note that it does NOT have a delayed start. The values "0 1 3 -1" roughly
+* translate to the following "commands" in Java-like syntax:
+*   reg += 0;  //  0 means don't touch the value
+*   reg++;     //  1 means increment by 1
+*   reg += 3;  //  3 means increment by 3
+*   reg--;     // -1 means decrement by 1
+* But note that these "commands" will happen EVERY positive clock edge (and
+* only when your reset signal is off)!
+*******************************************************************************
+Wincr incr[31:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
++ 0 1 3 -1
+
+*******************************************************************************
+* Plot our reset waveform, our incr waveform, clk1, and your 32-bit register.
+* Note: sd() displays a range of nodes as a signed decimal (instead of hex)
+*******************************************************************************
+.tran 300ns
+.plot reset
+.plot sd(incr[31:0])
+.plot clk1
+.plot sd(reg[31:0])
