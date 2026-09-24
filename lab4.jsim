@@ -1,13 +1,9 @@
 *******************************************************************************
-* As with the previous labs, replace this header comment using the following
-* format. (Team name, then members in "Last Name, First Name" format sorted
-* by last name.)
-*
 * LAB #4
-* The Phantom Thieves
-* - Amamiya, Ren
-* - Sakamoto, Ryuji
-* - Takamaki, Ann
+* Team Cooked, Not Cooking
+* - Badiola, Enrique Gabriel
+* - Paras, Riva Kaitleen
+* - Sy, Cynric Wencarll
 *******************************************************************************
 
 .include "8clocks.jsim"
@@ -18,26 +14,41 @@
 * Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
 *******************************************************************************
 .subckt fa a b c_in sum c_out
-  ********
-  * Replace these comments with your code.
-  ********
+X1 a b n1 nand2
+X2 a n1 n2 nand2
+X3 b n1 n3 nand2
+X4 n2 n3 n4 nand2
+
+X5 n4 c_in n5 nand2
+X6 n4 n5 n6 nand2
+X7 c_in n5 n7 nand2
+X8 n6 n7 sum nand2
+
+X9 n1 n5 c_out nand2
 .ends
 
 .subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
-  ********
-  * Replace these comments with your code.
-  * Strictly follow the order of the operands here, or you may have trouble
-  * for later circuits!
-  ********
+.connect cin0 carry0
+
+Xfa a[31:0] b[31:0] carry[31:0] sum[31:0] carry[32:1] fa
+
+.connect carry32 cout31
+.connect carry31 cout30
 .ends
 
 *******************************************************************************
 * Your new counter32 subcircuit code should go here.
 *******************************************************************************
 .subckt counter32 reset a[31:0] f[31:0] clk
-  ********
-  * Replace these comments with your code.
-  ********
+* Add the increment to the current register value, with no carry-in.
+Xadd a[31:0] f[31:0] 0 sum[31:0] carry[31:30] add32
+
+* A high reset selects zero for all 32 register inputs.
+Xmux reset#32 sum[31:0] 0#32 next[31:0] mux2
+
+* Store the selected value on each rising clock edge and feed it back.
+Xreg next[31:0] clk#32 f[31:0] dreg
+
 .ends
 
 *******************************************************************************
@@ -82,6 +93,13 @@
 Xcounter32 reset incr[31:0] reg[31:0] clk1 counter32
 
 *******************************************************************************
+* Faster-clock stress test: 2ns period (500MHz), versus clk1's 10ns (100MHz).
+* Reuse the same reset and increment waveforms with a separate counter.
+*******************************************************************************
+Vfastclk fastclk 0 pulse(0, 5, 0.9ns, 0.1ns, 0.1ns, 0.9ns, 2ns)
+Xfastcounter reset incr[31:0] fastreg[31:0] fastclk counter32
+
+*******************************************************************************
 * This "reset" waveform sets up a reset signal that has a delayed start
 * and then goes to the next value every 50ns.
 * The values "1 0 0 0 1 0" indicate that the reset signal only turns on twice.
@@ -111,5 +129,7 @@ Wincr incr[31:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
 .tran 300ns
 .plot reset
 .plot sd(incr[31:0])
-.plot clk1
+.plot clk[8:1]
 .plot sd(reg[31:0])
+.plot fastclk
+.plot sd(fastreg[31:0])
