@@ -11,7 +11,7 @@
 .include "stdcell.jsim"
 
 *******************************************************************************
-* Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
+* Full adder and 32-bit Ripple-Carry Adder
 *******************************************************************************
 .subckt fa a b c_in sum c_out
 X1 a b n1 nand2
@@ -37,7 +37,7 @@ Xfa a[31:0] b[31:0] carry[31:0] sum[31:0] carry[32:1] fa
 .ends
 
 *******************************************************************************
-* Your new counter32 subcircuit code should go here.
+* Counter 32 Subcircuit
 *******************************************************************************
 .subckt counter32 reset a[31:0] f[31:0] clk
 * Add the increment to the current register value, with no carry-in.
@@ -52,44 +52,21 @@ Xreg next[31:0] clk#32 f[31:0] dreg
 .ends
 
 *******************************************************************************
-* Pitfall: DON'T use numbers AND iterators in your node names at the same time,
-*          e.g., temp[31:0] and temp2[31:0] will result in conflicts!
+* The current behavior of the 32-bit register can be explaained as the following:
+*       - During the incremenent, it goes through the adder and adds the waveform values specirfied.
 *
-* Also, you may need to use these statements when making your own counter32:
+*       - During the decrement, as the system doesn't technically know when a number is negative or positive, justs adds it anyways.
+*        In the cases of decrement, the adder simply adds the two's complement eq2uivalent of a value to the current register.
 *
-* .connect node othernode(s)...
-*  = connects the first node to all the subsequent nodes
-*    - For example, ".connect a b[31:0]" connects a to b31, b30, ..., b0.
-*    - You can also connect nodes directly to ground ("false") by saying
-*      ".connect 0 othernode(s)..."
-*    - You can also connect nodes directly to vdd ("true") by saying
-*      ".connect vdd othernode(s)..."
-*
-* Xid s d0 d1 z mux2
-*  = "mux2" defines a 2-way multiplexer circuit.
-*    - If s = 0, node z is set to the value of node d0.
-*    - If s = 1, node z is set to the value of node d1.
-*    - s, d0, d1 and z are SINGLE BITS. As usual, use iterators to create
-*      several multiplexers at once.
-*    - Note that the reset node of your counter32 is only a single bit
-*      (NOT 32 bits), so to use it with multiple multiplexers, use the form
-*      "node#n" to make n copies of the node, e.g., "reset#32".
-*
-* Xid d clk q dreg
-*  = "dreg" defines a flip-flop register q (a single bit of "memory") and sets
-*    it to the value of another node, d.
-*    - Unlike "connect"-ing nodes, the value only gets stored into q when clk
-*      is doing a rising transition (also known as a "positive edge trigger").
-*    - Hint: You will also need iteration for this since we need a 32-bit
-*      register, which means you will also need to make 32 copies of clk.
+*       - In RESET situations, the MUX utilizes the reset over the sum in the MUX and will overide the "sum" computed by add32 if active.
+*       In a sense, it basically RESET forces the output to zero even if Add32 calculated something.
+* 
+* In regards to visibly significant delays, it takes time for the ripple counter to calculate the value through every bit of the 32-bit adder.
+* Coupled with the fact it also settles the mux, the register does not get the final computed value that may have visible delays in faster clocks.
+* The "green bar of death" is basically us watching the T_pd of the clock cycles and the "bar" being the system being in an unsettled state.
+* Visually representing something mid-computation, the system does not want to output results until it has been fully settled.
 *******************************************************************************
 
-*******************************************************************************
-* Finally, it's time to simulate.
-* This circuit block instantiates the counter32 circuit that you just wrote.
-* We pass it a single-bit reset signal, a 32-bit increment value, a 32-bit
-* register, and a clock signal (we just used the JSim-predefined clk1).
-*******************************************************************************
 Xcounter32 reset incr[31:0] reg[31:0] clk1 counter32
 
 *******************************************************************************
@@ -98,6 +75,14 @@ Xcounter32 reset incr[31:0] reg[31:0] clk1 counter32
 *******************************************************************************
 Vfastclk fastclk 0 pulse(0, 5, 0.9ns, 0.1ns, 0.1ns, 0.9ns, 2ns)
 Xfastcounter reset incr[31:0] fastreg[31:0] fastclk counter32
+
+*******************************************************************************
+* A faster running clock, while possible, does little to benefit the current situation. 
+* The ripple-carry would still need to go through all 32 stages, still taking a fixed amount of time.
+* Checking in mid-calculation gives the green bars of death without the actual usable values.
+* Beyond that, the ripple process would be more frequently disrupted and as such, could disrupt counting anything meaningful.
+* Ideally, the clock period should be atleast as long as the settling time of the add32 and mux2, following the fixed time of the hardware.
+*******************************************************************************
 
 *******************************************************************************
 * This "reset" waveform sets up a reset signal that has a delayed start
