@@ -3,7 +3,7 @@
 * Team Cooked, Not Cooking
 * - Badiola, Enrique Gabriel
 * - Paras, Riva Kaitleen
-* - Sy, Cynric Wencarll
+* - Sy, Wencarll Cynric
 *******************************************************************************
 
 .include "8clocks.jsim"
@@ -13,18 +13,17 @@
 *******************************************************************************
 * 
 *******************************************************************************
+.subckt join s t
+.connect s t
+.ends
+
+*******************************************************************************
+* 
+*******************************************************************************
 .subckt fa a b c_in sum c_out
-X1 a b n1 nand2
-X2 a n1 n2 nand2
-X3 b n1 n3 nand2
-X4 n2 n3 n4 nand2
-
-X5 n4 c_in n5 nand2
-X6 n4 n5 n6 nand2
-X7 c_in n5 n7 nand2
-X8 n6 n7 sum nand2
-
-X9 n1 n5 c_out nand2
+Xp a b p xor2
+Xs p c_in sum xor2
+Xc p a c_in c_out mux2
 .ends
 
 .subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
@@ -37,22 +36,19 @@ Xfa a[31:0] b[31:0] carry[31:0] sum[31:0] carry[32:1] fa
 .ends
 
 *******************************************************************************
-*
+* 
 *******************************************************************************
 .subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
-Xnb b[31:0] nb[31:0] inverter
-Xmux op0#32 b[31:0] nb[31:0] bx[31:0] mux2
-
+Xbx b[31:0] op0#32 bx[31:0] xor2
 Xadd a[31:0] bx[31:0] op0 fas[31:0] cout[31:30] add32
 
 .connect fas31 n
 Xov cout31 cout30 v xor2
 
-* Zero detect: eight nor4s (each checks 4 bits are all 0), then AND them together
 Xnor fas[31:0:4] fas[30:0:4] fas[29:0:4] fas[28:0:4] nz[7:0] nor4
-Xand1 nz7 nz6 nz5 nz4 za and4
-Xand2 nz3 nz2 nz1 nz0 zb and4
-Xand3 za zb z and2
+Xnd1 nz7 nz6 nz5 nz4 za nand4
+Xnd2 nz3 nz2 nz1 nz0 zb nand4
+Xz za zb z nor2
 .ends
 
 *******************************************************************************
@@ -60,14 +56,20 @@ Xand3 za zb z and2
 *******************************************************************************
 .subckt cmp32 n v z op[2:1] fcmp[31:0]
 Xlt n v lt xor2
-Xeq op1 z eq and2
-Xless op2 lt less and2
-Xres eq less fcmp0 or2
-Xgnd 0#31 fcmp[31:1] buffer
+Xeq op1 z eqn nand2
+Xless op2 lt lessn nand2
+Xres eqn lessn fcmp0 nand2
+
+Xzero zero constant0
+Xgnd zero#31 fcmp[31:1] join
 .ends
 
 *******************************************************************************
-* 
+* bool32: does AND, OR, XOR, etc. on every bit of a and b.
+* For each bit, a and b pick one of four "op" bits (a "truth table"):
+*   a b = 00 -> op0,  10 -> op1,  01 -> op2,  11 -> op3
+* Changing op changes the function: 1000 = AND, 1110 = OR, 0110 = XOR.
+* One small mux4 per bit does all of it, so it is small and simple.
 *******************************************************************************
 .subckt bool32 a[31:0] b[31:0] op[3:0] fbool[31:0]
 Xmux a[31:0] b[31:0] op0#32 op1#32 op2#32 op3#32 fbool[31:0] mux4
@@ -79,25 +81,24 @@ Xmux a[31:0] b[31:0] op0#32 op1#32 op2#32 op3#32 fbool[31:0] mux4
 .subckt shift32 a[31:0] b[4:0] op[1:0] fshift[31:0]
 Xfill op1 a31 fill and2
 
-* stage: shift by 16 (b4)
-Xdp op0#32 a[15:0] 0#16 fill#16 a[31:16] cp[31:0] mux2
-Xsp b4#32 a[31:0] cp[31:0] yp[31:0] mux2
+*******************************************************************************
+*
+*******************************************************************************
+Xrin op0#32 a[0:31] a[31:0] xr[31:0] mux2
 
-* stage: shift by 8 (b3)
-Xdq op0#32 yp[23:0] 0#8 fill#8 yp[31:8] cq[31:0] mux2
-Xsq b3#32 yp[31:0] cq[31:0] yq[31:0] mux2
+*******************************************************************************
+* 
+*******************************************************************************
+Xs4 b4#32 xr[31:0] fill#16 xr[31:16] ya[31:0] mux2
+Xs3 b3#32 ya[31:0] fill#8 ya[31:8] yb[31:0] mux2
+Xs2 b2#32 yb[31:0] fill#4 yb[31:4] yc[31:0] mux2
+Xs1 b1#32 yc[31:0] fill#2 yc[31:2] yd[31:0] mux2
+Xs0 b0#32 yd[31:0] fill yd[31:1] ye[31:0] mux2
 
-* stage: shift by 4 (b2)
-Xdr op0#32 yq[27:0] 0#4 fill#4 yq[31:4] cr[31:0] mux2
-Xsr b2#32 yq[31:0] cr[31:0] yr[31:0] mux2
-
-* stage: shift by 2 (b1)
-Xds op0#32 yr[29:0] 0#2 fill#2 yr[31:2] cs[31:0] mux2
-Xss b1#32 yr[31:0] cs[31:0] ys[31:0] mux2
-
-* stage: shift by 1 (b0)
-Xdt op0#32 ys[30:0] 0 fill ys[31:1] ct[31:0] mux2
-Xst b0#32 ys[31:0] ct[31:0] fshift[31:0] mux2
+*******************************************************************************
+* 
+*******************************************************************************
+Xrout op0#32 ye[0:31] ye[31:0] fshift[31:0] mux2
 .ends
 
 *******************************************************************************
@@ -105,11 +106,34 @@ Xst b0#32 ys[31:0] ct[31:0] fshift[31:0] mux2
 *******************************************************************************
 .subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0]
 Xas a[31:0] b[31:0] alufn0 fas[31:0] n v z as32
-Xbool a[31:0] b[31:0] alufn[3:0] fbool[31:0] bool32
-Xshift a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
 Xcmp n v z alufn[2:1] fcmp[31:0] cmp32
+Xshift a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
 
-Xsel alufn4#32 alufn5#32 fas[31:0] fbool[31:0] fshift[31:0] fcmp[31:0] f[31:0] mux4
+*******************************************************************************
+* 
+*******************************************************************************
+Xna5 alufn5 nalu5 inverter
+Xna4 alufn4 nalu4 inverter
+Xsas alufn5 alufn4 selas nor2
+Xssh nalu5 alufn4 selsh nor2
+Xscm alufn5 alufn4 selcmp and2
+Xsbl alufn5 nalu4 selbl nor2
+
+*******************************************************************************
+* 
+*******************************************************************************
+Xtt alufn[3:0] selbl#4 tt[3:0] nand2
+Xbool a[31:0] b[31:0] tt[3:0] fbooln[31:0] bool32
+
+*******************************************************************************
+* 
+*******************************************************************************
+Xtas fas[31:0] selas#32 tas[31:0] nand2
+Xtsh fshift[31:0] selsh#32 tsh[31:0] nand2
+Xtcm fcmp0 selcmp tcm nand2
+
+Xf1 tas[31:1] tsh[31:1] fbooln[31:1] f[31:1] nand3
+Xf0 tas0 tsh0 tcm fbooln0 f0 nand4
 .ends
 
 Xalu a[31:0] b[31:0] alufn[5:0] f[31:0] alu32
@@ -117,16 +141,20 @@ Xalu a[31:0] b[31:0] alufn[5:0] f[31:0] alu32
 *******************************************************************************
 * 
 *******************************************************************************
-Walufn alufn[5:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
-+ 0 1 0 1 0x18 0x1E 0x16 0x17 0x11 0x15 0x13 0x1A 0x20 0x21 0x23 0x21 0x20 0x23 0x21 0x33 0x33 0x35 0x35 0x37 0x37 0x35
+Wa a[31:0] nrz(0v,5.0v,20ns,0ns,.1ns,.1ns)
++ -1 0x55555555 0xAAAAAAAA 1 -2 -1 -1 0x55555555 0 -1 0x55555555 0
++ -1 0x55555555 0 -1 0x55555555 0 -1 0x55555555 0 1 -1 -1 0x55555555 0xAAAAAAAA -1
++ 0x55555555 0xAAAAAAAA -1 -1 15 0 -1 15 0 -1 15 0
 
-Wa a[31:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
-+ 5 5 0x7FFFFFFF 0x80000000 0xF0F0F0F0 0xF0F0F0F0 0xF0F0F0F0 0xF0F0F0F0 0xF0F0F0F0 0xF0F0F0F0 0xF0F0F0F0 0xF0F0F0F0 0x12345678 0xF2345678 0xF2345678 0xFFFFFFFF 1 0x80000000 0x80000000 3 0xAAAAAAAA 3 0x80000000 5 0xFFFFFFFF 0x7FFFFFFF
+Wb b[31:0] nrz(0v,5.0v,20ns,0ns,.1ns,.1ns)
++ 1 0x55555555 0xAAAAAAAA 1 0 -1 -1 0xAAAAAAAA 0 -1 0xAAAAAAAA 0
++ -1 0xAAAAAAAA 0 -1 0xAAAAAAAA 0 -1 0xAAAAAAAA 0 31 15 0 24 24 31
++ 24 24 31 1 15 -256 1 15 -256 1 15 -256
 
-Wb b[31:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
-+ 7 7 1 1 0xFF00FF00 0xFF00FF00 0xFF00FF00 0xFF00FF00 0xFF00FF00 0xFF00FF00 0xFF00FF00 0xFF00FF00 4 4 4 0x15 0x1F 0x1F 0 3 0x55555555 5 2 3 1 0xFFFFFFFE
+Wf alufn[5:0] nrz(0v,5.0v,60ns,0ns,.1ns,.1ns)
++ 0 1 24 30 22 26 21 32 33 35 51 53 55
 
-.tran 1310ns
+.tran 780ns
 .plot sd(alufn[5:0])
 .plot sd(a[31:0])
 .plot sd(b[31:0])
