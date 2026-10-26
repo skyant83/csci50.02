@@ -1,0 +1,57 @@
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+| This sample .uasm program processes an array of integers and computes
+| their total sum.
+|
+| Important notes:
+| 1. As usual, replace this comment block with the specific lab number that
+|    you are submitting, along with your group name and member names in
+|    lastname-firstname alphabetical order.
+| 2. For Lab 7, you are expected to mark the data portions of your program
+|    using labels, as demonstrated below using the labels INPUT: and OUTPUT:.
+| 3. While this sample program should work fine with most user inputs, there
+|    is an edge case that will cause this program to fail catastrophically.
+|    (Can you figure it out?)
+|
+| Happy hacking! - eric
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+.include beta.uasm    | include the standard predefined macros
+
+  LD(r31, INPUT, r0)  | r0 = memory[r31 + INPUT] (the array length)
+                      |  note: r31 is a special register that is always
+                      |   zero; you can shorten this to LD(INPUT, r0)
+LOOP:
+  ADDC(r1, 4, r1)     | r1 = r1 + 4 (note: r1 is initially 0)
+  LD(r1, INPUT, r2)   | r2 = memory[r1 + INPUT]
+  ADD(r3, r2, r3)     | r3 = r3 + r2 (keep a running total in r3)
+  SUBC(r0, 1, r0)     | r0 = r0 - 1 (decrement the array counter)
+  BNE(r0, LOOP)       | (B)ranch back to LOOP if r0 is (N)ot (E)qual to 0
+
+ST(r3, OUTPUT, r31) | otherwise, store r3 into memory[OUTPUT + r31]
+                    |  note: you can shorten this to ST(r3, OUTPUT)
+HALT()              | then, finish execution
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+| The "." statement changes the current memory location of any succeeding
+| UASM macros, so that it is easy to locate in the BSim window.
+| - If you omit this statement, the INPUT memory block would begin directly
+|   after your program block.
+| - You may need to adjust this memory location to make more memory space for
+|   your data.
+. = 0x19C
+
+| INPUT marks the beginning of the memory block containing the hardcoded
+| user "input".
+INPUT:
+  LONG(5)             | <-- length of the array
+  LONG(4)             | <-- first element of the array
+  LONG(2)
+  LONG(0)
+  LONG(6)
+  LONG(-9)            | <-- last element of the array
+
+| OUTPUT marks the memory block where the output will appear.
+| Nothing follows the label because the output will be written by the program.
+OUTPUT:
