@@ -1,0 +1,64 @@
+|-------------------------------------
+| LAB #6
+| Team Cooked, Not Cooking
+| - Badiola, Enrique Gabriel
+| - Paras, Riva Kaitleen
+| - Sy, Wencarll Cynric
+|-------------------------------------
+
+| R0 COMP
+| R1 INDEX
+| R2 ARR[INDEX]
+| R3 TEMP
+| R4 EVEN
+| R5 ODD
+| R6 N
+
+.include /beta.uasm
+
+LD(INPUT, R6)
+CMOVE(1, R1)
+CMOVE(0, R4)
+CMOVE(0, R5)
+
+LOOP:
+  CMPLE(R1, R6, R0)
+  BF(R0, DONE)
+
+  SHLC(R1, 2, R2)
+  LD(R2, INPUT, R2)
+
+  ANDC(R2, 1, R3)
+  BT(R3, ODD)
+
+  ADD(R2, R4, R4)
+  BR(INC)
+
+  ODD:
+    ADD(R2, R5, R5)
+
+  INC:
+    ADDC(R1, 1, R1)
+    BR(LOOP)
+
+DONE:
+  ST(R4, EVENSUM)
+  ST(R5, ODDSUM)
+  HALT()
+
+. = 0x19C
+INPUT:
+  LONG(7)       | length of the array
+  LONG(-5)
+  LONG(-7)
+  LONG(8)
+  LONG(6)
+  LONG(4)
+  LONG(-9)
+  LONG(-3)       | last element of the array
+
+. = . + 0x04
+ODDSUM:
+
+. = . + 0x04
+EVENSUM:
