@@ -166,7 +166,7 @@ Wf alufn[5:0] nrz(0v,5.0v,60ns,0ns,.1ns,.1ns)
 + 0 1 24 30 22 26 21 32 33 35 51 53 55
 
 .tran 780ns
-.plot sd(alufn[5:0])
-.plot sd(a[31:0])
-.plot sd(b[31:0])
-.plot sd(f[31:0])
+.plot alufn[5:0]
+.plot a[31:0]
+.plot b[31:0]
+.plot f[31:0]
