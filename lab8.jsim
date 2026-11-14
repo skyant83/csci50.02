@@ -147,17 +147,21 @@ Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 *******************************************************************************
 * 4c. Functional coverage of our Lab 7 program (prob1.uasm, odd/even sum)
 *
-*     Opcodes in our control ROM (27):
+*     Supported non-HALT opcodes in our control ROM (27):
 *       LD, ST, JMP, BEQ, BNE
 *       ADD, SUB, CMPEQ, CMPLT, CMPLE, AND, OR, XOR, SHL, SHR, SRA
 *       ADDC, SUBC, CMPEQC, CMPLTC, CMPLEC, ANDC, ORC, XORC, SHLC, SHRC, SRAC
 *     All other opcodes give 0b11000000000000.
 *
-*     Opcodes used by prob1.uasm (9):
+*     Non-HALT opcodes used by prob1.uasm (9):
 *       LD, ST, BEQ (BF and BR), BNE (BT), ADD, ADDC (CMOVE), CMPLE,
 *       ANDC, SHLC
 *
-*     Coverage: 9 out of 27 opcodes = 33%.
+*     The program also uses HALT, which has opcode 0x00  and
+*     produces the control word 0b11000000000000.
+*
+*     Coverage excluding HALT: 9 out of 27 non-HALT opcodes = 33.3%.
+*     Coverage including HALT: 10 out of 28 supported operations = 35.7%.
 *
 *     Not used: JMP, SUB, CMPEQ, CMPLT, AND, OR, XOR, SHL, SHR, SRA,
 *     SUBC, CMPEQC, CMPLTC, CMPLEC, ORC, XORC, SHRC, SRAC.
