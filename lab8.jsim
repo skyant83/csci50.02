@@ -4,6 +4,9 @@
 * - Badiola, Enrique Gabriel
 * - Paras, Riva Kaitleen
 * - Sy, Wencarll Cynric
+*
+* Lab 7 program used: Problem 2 (Fibonacci sequence, prob2.uasm)
+* Assembled output: lab7.bin
 *******************************************************************************
 
 .include "8clocks.jsim"
@@ -51,8 +54,8 @@
 *   2nd line = read port for LD instructions (memrd)
 *   3rd line = write port for ST instructions (memwd, controlled by wr signal)
 *   5th line = the memory statement itself
-* TODO: Copy your Beta program's BSim assembler output (.bin file) to your JSim
-*       folder and change the file= parameter accordingly!
+*
+* Lab 7 program used: Problem 2 (Fibonacci sequence) -> lab7.bin
 *******************************************************************************
 Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
 +        vdd  0    0   mema[8:2]  memrd[31:0]
@@ -78,12 +81,10 @@ Xregisters  vdd  0    0     ra1_[4:0]  rd1_[31:0]
 + )
 
 *******************************************************************************
-* Temporarily connect the control logic werf_ signal directly to werf.
-* TODO: You must replace this with circuitry so that if wa[4:0] = 0b11111 (31),
-*       the werf signal is forced OFF; otherwise, it should pass through the
-*       werf_ signal.
+* Register 31 must always read as zero, so writes to it are blocked:
+* if wa[4:0] = 0b11111 (31), the werf signal is forced OFF; otherwise it
+* passes through the werf_ signal from the control logic.
 *******************************************************************************
-
 Xwa_hi    wa[4] wa[3] wa[2] wa[1] wa_hi    and4
 Xwa_eq31  wa_hi wa[0]                  wa_eq31  and2
 Xwa_not31 wa_eq31                      wa_not31 inverter
@@ -98,22 +99,21 @@ Xwerf     werf_ wa_not31               werf     and2
 *   2nd line = the memory statement itself
 *   succeeding lines = the control signals (14 bits each) for all 64 opcodes
 *                      times 2 (first half is for z = 0, second half for z = 1)
-* TODO: Fill these lines with the proper control signals for each opcode!
 *******************************************************************************
 
 *******************************************************************************
 * 4a. Why is there an additional Z input in the Xcontrol block?
-* 
-*     By itself, the opcode fixes every control signal except for when BEQ and BNE choose between "next instruction" and "branch".
-*     The determining value is only known at run-time based on whether Ra is zero. z is 1 when it is.
-*     
-*     For BEQ, z = 1 which gives PCSEL = 01 (branch taken). When z = 0, PCSEL = 00.
-*     For BNE, it is the reverse in regards to values.
-* 
-*     With this context, the ROM needs z as an extra address bit. 
-*     Regardless of what z is equal to, the other opcodes remain unchanged in its behavior.
+*
+*     By itself, the opcode fixes every control signal except for when BEQ and
+*     BNE choose between "next instruction" and "branch". The deciding value is
+*     only known at run-time, based on whether Ra is zero. z is 1 when it is.
+*
+*     For BEQ, z = 1 gives PCSEL = 01 (branch taken). When z = 0, PCSEL = 00.
+*     For BNE, it is the reverse.
+*
+*     With this context, the ROM needs z as an extra address bit.
+*     Regardless of what z is equal to, the other opcodes behave identically.
 *******************************************************************************
-
 
 Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 + $memory width=14 nlocations=128 contents=(
@@ -139,18 +139,49 @@ Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 *******************************************************************************
 * 4b. Why should invalid instructions' control output be 0b11000000000000?
 *
-*     This sets PCSEL to 11 results in an error, causing the program to halt.
-*     This also sets Wr and WERF to 0. Being an unrecognized opcode, it cannot write
-*     memory or change any register. It also cannot be ignored either,
-*     preventing the program from running as if it were a normal instruction.
-*     Unused ROM entries defaults to this safe word. 
+*     PCSEL = 11 selects the illegal-instruction handler address (XAdr), so
+*     an unrecognized opcode traps instead of executing as a normal
+*     instruction. WR = 0 and WERF = 0 mean the bad instruction cannot write
+*     to memory or change any register. Unused ROM entries default to this
+*     safe word.
 *******************************************************************************
 
 *******************************************************************************
-* 4c. Functional coverage of the Lab 7 program (prob1.uasm)
-* 
-* Add this pls 
+* 4c. Functional coverage of the Lab 7 program (prob2.uasm, Fibonacci
+*     sequence, assembled to lab7.bin)
 *
+*     Implemented in the control ROM (27 opcodes):
+*       Memory/branch : LD, ST, JMP, BEQ, BNE
+*       ALU (reg)     : ADD, SUB, CMPEQ, CMPLT, CMPLE, AND, OR, XOR,
+*                       SHL, SHR, SRA
+*       ALU (const)   : ADDC, SUBC, CMPEQC, CMPLTC, CMPLEC, ANDC, ORC,
+*                       XORC, SHLC, SHRC, SRAC
+*       (MUL, DIV, LDR and all other opcodes map to 0b11000000000000)
+*
+*     Exercised by prob2.uasm (6 opcodes):
+*       LD   - LD(INPUT, R0)
+*       ST   - ST(R2, 0, R1)
+*       BEQ  - BEQ(R0, DONE); also BR() and HALT(), which assemble to BEQ
+*              with r31 (so z = 1 and the branch is always taken)
+*       ADD  - ADD(R2, R3, R4); MOVE() is also an ADD (with r31)
+*       ADDC - ADDC(R1, 4, R1); CMOVE() is also an ADDC (with r31)
+*       SUBC - SUBC(R0, 1, R0)
+*
+*     Coverage: 6 / 27 implemented opcodes = 22%.
+*     BEQ is exercised with both z = 0 (loop continues) and z = 1 (loop
+*     ends), so both halves of the ROM are used for that opcode.
+*
+*     Not exercised: JMP and BNE; register-register ALU ops other than ADD
+*     (SUB, CMPEQ, CMPLT, CMPLE, AND, OR, XOR, SHL, SHR, SRA); constant ALU
+*     ops other than ADDC and SUBC (CMPEQC, CMPLTC, CMPLEC, ANDC, ORC, XORC,
+*     SHLC, SHRC, SRAC).
+*
+*     Is the coverage good? No, it is only basic. The program checks
+*     the core data path (load, store, add, add/subtract constant, and one
+*     conditional branch), but it has no compares, logic ops, shifts, BNE or
+*     JMP, so those ROM rows are untested and a typo in any of them would go
+*     unnoticed. Testing them would need another Lab 7 program or a small
+*     test program.
 *******************************************************************************
 
 *******************************************************************************
@@ -195,6 +226,9 @@ Xjpc clk[8:2] pc[8:2] join
 * Temporarily connect other undefined signals.
 * Note that you will need to remove these signals from this section once you
 * connect them elsewhere!
+*
+* TO TEST BOTH HALVES OF THE CONTROL ROM: run once with ".connect 0 z" (first
+* half, z = 0) and once with ".connect vdd z" (second half, z = 1).
 *******************************************************************************
 .connect vdd clk ra1_[4:0] ra2_[4:0] wa[4:0] wd[31:0] mema[8:0] memwd[31:0]
 .connect 0 z
@@ -219,18 +253,6 @@ Xjdisplayb wr_werf[1:0]     wr werf_               join
 * - mema (address to access in main memory)
 * - memrd (result of reading address mema)
 * - memwd (value being written to address mema -- but only if wr is 1)
-*
-* Since the circuit is incomplete, the values will be invalid starting from the
-* control signals. After you're done with this current lab, the control signals
-* should be correct. (After you're done with the final lab, everything should
-* be correct!)
-*
-* IMPORTANT: Since z is currently connected to 0, only the first half of your
-*            table of control logic signals is returned. To test the second
-*            half of your table, modify the ".connect 0 z" statement above
-*            this section to ".connect vdd z". (Remember that in the final
-*            lab, z should instead be computed by some circuit instead of
-*            connected to ground or vdd!)
 *******************************************************************************
 .tran 1280ns
 .plot pc[8:0]
@@ -250,3 +272,4 @@ Xjdisplayb wr_werf[1:0]     wr werf_               join
 .plot d(mema[8:0])
 .plot sd(memrd[31:0])
 .plot sd(memwd[31:0])
+
