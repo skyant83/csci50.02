@@ -5,7 +5,7 @@
 * - Paras, Riva Kaitleen
 * - Sy, Wencarll Cynric
 *
-* Lab 7 program used: Problem 2 (Fibonacci sequence, prob2.uasm)
+* Lab 7 program used: Problem 1 (odd/even sum, prob1.uasm)
 * Assembled output: lab7.bin
 *******************************************************************************
 
@@ -55,7 +55,7 @@
 *   3rd line = write port for ST instructions (memwd, controlled by wr signal)
 *   5th line = the memory statement itself
 *
-* Lab 7 program used: Problem 2 (Fibonacci sequence) -> lab7.bin
+* Lab 7 program used: Problem 1 (odd/even sum) -> lab7.bin
 *******************************************************************************
 Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
 +        vdd  0    0   mema[8:2]  memrd[31:0]
@@ -139,47 +139,33 @@ Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 *******************************************************************************
 * 4b. Why should invalid instructions' control output be 0b11000000000000?
 *
-*     PCSEL = 11 selects the illegal-instruction handler address (XAdr), so
-*     an unrecognized opcode traps instead of executing as a normal
-*     instruction. WR = 0 and WERF = 0 mean the bad instruction cannot write
-*     to memory or change any register. Unused ROM entries default to this
-*     safe word.
+*     PCSEL = 11 makes the Beta jump to the illegal instruction handler, so
+*     a bad opcode does not run like a normal instruction. WR = 0 and
+*     WERF = 0, so the bad instruction cannot change memory or registers.
 *******************************************************************************
 
 *******************************************************************************
-* 4c. Functional coverage of the Lab 7 program (prob2.uasm)
-*     Implemented in the control ROM (27 opcodes):
-*       Memory/branch : LD, ST, JMP, BEQ, BNE
-*       ALU (reg)     : ADD, SUB, CMPEQ, CMPLT, CMPLE, AND, OR, XOR,
-*                       SHL, SHR, SRA
-*       ALU (const)   : ADDC, SUBC, CMPEQC, CMPLTC, CMPLEC, ANDC, ORC,
-*                       XORC, SHLC, SHRC, SRAC
-*       (MUL, DIV, LDR and all other opcodes map to 0b11000000000000)
+* 4c. Functional coverage of our Lab 7 program (prob1.uasm, odd/even sum)
 *
-*     Exercised by prob2.uasm (6 opcodes):
-*       LD   - LD(INPUT, R0)
-*       ST   - ST(R2, 0, R1)
-*       BEQ  - BEQ(R0, DONE); also BR() and HALT(), which assemble to BEQ
-*              with r31 (so z = 1 and the branch is always taken)
-*       ADD  - ADD(R2, R3, R4); MOVE() is also an ADD (with r31)
-*       ADDC - ADDC(R1, 4, R1); CMOVE() is also an ADDC (with r31)
-*       SUBC - SUBC(R0, 1, R0)
+*     Opcodes in our control ROM (27):
+*       LD, ST, JMP, BEQ, BNE
+*       ADD, SUB, CMPEQ, CMPLT, CMPLE, AND, OR, XOR, SHL, SHR, SRA
+*       ADDC, SUBC, CMPEQC, CMPLTC, CMPLEC, ANDC, ORC, XORC, SHLC, SHRC, SRAC
+*     All other opcodes give 0b11000000000000.
 *
-*     Coverage: 6 / 27 implemented opcodes = 22%.
-*     BEQ is exercised with both z = 0 (loop continues) and z = 1 (loop
-*     ends), so both halves of the ROM are used for that opcode.
+*     Opcodes used by prob1.uasm (9):
+*       LD, ST, BEQ (BF and BR), BNE (BT), ADD, ADDC (CMOVE), CMPLE,
+*       ANDC, SHLC
 *
-*     Not exercised: JMP and BNE; register-register ALU ops other than ADD
-*     (SUB, CMPEQ, CMPLT, CMPLE, AND, OR, XOR, SHL, SHR, SRA); constant ALU
-*     ops other than ADDC and SUBC (CMPEQC, CMPLTC, CMPLEC, ANDC, ORC, XORC,
-*     SHLC, SHRC, SRAC).
+*     Coverage: 9 out of 27 opcodes = 33%.
 *
-*     Is the coverage good? No, it is only basic. The program checks
-*     the core data path (load, store, add, add/subtract constant, and one
-*     conditional branch), but it has no compares, logic ops, shifts, BNE or
-*     JMP, so those ROM rows are untested and a typo in any of them would go
-*     unnoticed. Testing them would need another Lab 7 program or a small
-*     test program.
+*     Not used: JMP, SUB, CMPEQ, CMPLT, AND, OR, XOR, SHL, SHR, SRA,
+*     SUBC, CMPEQC, CMPLTC, CMPLEC, ORC, XORC, SHRC, SRAC.
+*
+*     Is the coverage good? Not really. The program tests the basics (load,
+*     store, both branches, add, compare, AND, shift), but most opcodes are
+*     never run. A mistake in those ROM rows would not show up. We would
+*     need another program to test them.
 *******************************************************************************
 
 *******************************************************************************
@@ -225,8 +211,8 @@ Xjpc clk[8:2] pc[8:2] join
 * Note that you will need to remove these signals from this section once you
 * connect them elsewhere!
 *
-* TO TEST BOTH HALVES OF THE CONTROL ROM: run once with ".connect 0 z" (first
-* half, z = 0) and once with ".connect vdd z" (second half, z = 1).
+* To test both halves of the control ROM, run once with ".connect 0 z" and
+* once with ".connect vdd z".
 *******************************************************************************
 .connect vdd clk ra1_[4:0] ra2_[4:0] wa[4:0] wd[31:0] mema[8:0] memwd[31:0]
 .connect 0 z
@@ -270,4 +256,3 @@ Xjdisplayb wr_werf[1:0]     wr werf_               join
 .plot d(mema[8:0])
 .plot sd(memrd[31:0])
 .plot sd(memwd[31:0])
-
