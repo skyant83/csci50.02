@@ -147,9 +147,7 @@ Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 *******************************************************************************
 
 *******************************************************************************
-* 4c. Functional coverage of the Lab 7 program (prob2.uasm, Fibonacci
-*     sequence, assembled to lab7.bin)
-*
+* 4c. Functional coverage of the Lab 7 program (prob2.uasm)
 *     Implemented in the control ROM (27 opcodes):
 *       Memory/branch : LD, ST, JMP, BEQ, BNE
 *       ALU (reg)     : ADD, SUB, CMPEQ, CMPLT, CMPLE, AND, OR, XOR,
