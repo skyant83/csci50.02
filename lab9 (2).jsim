@@ -10,21 +10,25 @@
 .include "nominal.jsim"
 .include "stdcell.jsim"
 
-*******************************************************************************
+* --- 1. Main memory: store the program and its data ---
+* Loads lab7.bin into 128 spaces of 4 bytes each: 512 bytes in total.
+* The four connections below fetch an instruction, read data, write data,
+* and show the final answer. Reading the answer does not change memory.
+* The extra read-only port shows the sample result stored at address 0x1B4.
 
-*******************************************************************************
-
-*******************************************************************************
-
-*******************************************************************************
+* inst means the current INSTRUCTION: the 32 bits read at the PC's address.
+* inst carries the encoded command, such as ADD or LD, plus its register
+* numbers and any constant. The decoding section below separates these parts.
 Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
 +        vdd  0    0   mema[8:2]  memrd[31:0]
 +        0    clk  wr  mema[8:2]  memwd[31:0]
++        vdd  0    0   vdd vdd 0 vdd vdd 0 vdd output[31:0]
 + $memory width=32 nlocations=128 file="lab7.bin"
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 2. Registers ---
+* All 32 registers start at zero. Two values can be read at once.
+* ra1_/ra2_ choose which registers to read; rd1_/rd2_ carry their values.
+* When werf is on, a rising clock edge writes wd into the register named by wa.
 Xregisters  vdd  0    0     ra1_[4:0]  rd1_[31:0]
 +           vdd  0    0     ra2_[4:0]  rd2_[31:0]
 +           0    clk  werf  wa[4:0]    wd[31:0]
@@ -35,21 +39,34 @@ Xregisters  vdd  0    0     ra1_[4:0]  rd1_[31:0]
 +   0 0 0 0 0 0 0 0
 + )
 
-*******************************************************************************
+* Protect R31 and prevent writes while the processor is starting up.
+* wa is the destination register NUMBER, not the value being saved.
+* Register 31 is 11111 in binary: all five address bits are 1.
+* The next two gates check those five bits to recognize R31.
 Xwa_hi    wa[4] wa[3] wa[2] wa[1] wa_hi    and4
 Xwa_eq31  wa_hi wa[0]                  wa_eq31  and2
+
+* Flip that answer: wa_not31=1 means the destination is safe to write.
+* R31 starts at zero and never accepts writes, so it always stays zero.
 Xwa_not31 wa_eq31                      wa_not31 inverter
-Xnreset   reset                        nreset   inverter
-Xwerf     werf_ wa_not31 nreset        werf     and3
 
-Xwr       wr_ nreset                   wr       and2
+* First check the instruction's request and protect R31.
+* werf_safe=1 only when a register write is requested and its target is not R31.
+Xrfcheck werf_ wa_not31 werf_safe and2
 
-*******************************************************************************
+* Reset selectors choose between normal operation and blocking all writes.
+* mux2 lists: selector, input if 0, input if 1, output.
+* reset=0: pass the normal permission. reset=1: choose zero (no write).
+* werf controls register writes; wr controls memory writes.
+* This protects stored values while the starting PC is being set.
+Xrfreset reset werf_safe 0 werf mux2
+Xwrreset reset wr_       0 wr   mux2
 
-*******************************************************************************
-* 
-*******************************************************************************
-
+* --- 3. Control table: instructions for the hardware ---
+* The instruction type (opcode) and the zero check (z) select one table entry.
+* Each entry chooses the next address, calculation, inputs, and allowed writes.
+* The first half is for z=0; the second is for z=1.
+* HALT and unsupported instructions keep the current address and block writes.
 Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 + $memory width=14 nlocations=128 contents=(
 +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
@@ -71,20 +88,17 @@ Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 +   0b00010101100001 0b00010101111001 0b00010101011001 0b11000000000000 0b00010110000001 0b00010110000101 0b00010110001101 0b11000000000000
 + )
 
-*******************************************************************************
-* 
-*******************************************************************************
-
-*******************************************************************************
-
-*******************************************************************************
+* --- 4. Wire helper ---
+* join connects two names to the same wire; it does not store or calculate.
+* [31:0] means 32 wires together. #32 repeats a connection 32 times.
 .subckt join S T
 .connect S T
 .ends
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 5. Give the control-table decisions readable names ---
+* pcsel chooses the next address; ra2sel and bsel choose inputs.
+* wdsel chooses the value to save; alufn chooses the calculation.
+* wr_ and werf_ request writes; the startup protection above checks them first.
 Xjcontrola control[13:12] pcsel[1:0] join
 Xjcontrolb control11      ra2sel     join
 Xjcontrolc control10      bsel       join
@@ -93,38 +107,44 @@ Xjcontrole control[7:2]   alufn[5:0] join
 Xjcontrolf control1       wr_        join
 Xjcontrolg control0       werf_      join
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 6. Read the parts of the current instruction ---
+* opcode says what to do. ra/rb name input registers; rc names the result register.
+* c is a number stored inside the instruction. Its bits overlap with rb,
+* because different instruction types use this space in different ways.
+* These wires split inst into fields; they do not execute the instruction.
+* The fields tell the other circuits which values to read and what to do.
 Xjinsta inst[31:26] opcode[5:0] join
 Xjinstb inst[25:21] rc[4:0]     join
 Xjinstc inst[20:16] ra[4:0]     join
 Xjinstd inst[15:11] rb[4:0]     join
 Xjinste inst[15:0]  c[15:0]     join
 
-*******************************************************************************
-
-*******************************************************************************
-
-*******************************************************************************
-
+* --- 7. Clock and startup ---
+* The clock gives the processor a new step every 20 ns.
+* Reset stays on through the first rising edge, then lets the program run.
 .connect clk2 clk
 
 Vreset reset 0 pulse(5,0,11ns,.1ns,.1ns,100000ns)
 
 .connect 0 gnd
 
+* --- 8. Adders: build a sum one bit at a time ---
+* fa adds two single bits and a carry from the previous bit.
+* It produces a sum bit and a carry for the next bit.
 .subckt fa a b c_in sum c_out
 Xp a b p xor2
 Xs p c_in sum xor2
 Xc p a c_in c_out mux2
 .ends
 
+* Chain 7 small adders for the instruction-address calculations.
 .subckt add7 a[6:0] b[6:0] cin s[6:0]
 .connect cin cc0
 Xfa a[6:0] b[6:0] cc[6:0] s[6:0] cc[7:1] fa
 .ends
 
+* Chain 32 small adders for full integer calculations.
+* Carries pass from one bit to the next; the final two help detect overflow.
 .subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
 .connect cin0 carry0
 
@@ -134,9 +154,15 @@ Xfa a[31:0] b[31:0] carry[31:0] sum[31:0] carry[32:1] fa
 .connect carry31 cout30
 .ends
 
-*******************************************************************************
+* --- 9. Addition and subtraction ---
+* op0=0 adds A+B. op0=1 flips the bits of B and adds 1, giving A-B.
+* n marks a negative result; v marks signed overflow; z marks a zero result.
+* Overflow means the signed answer does not fit in 32 bits.
 
-*******************************************************************************
+* fas names the 32-bit answer from this addition/subtraction block.
+* Example: A=7, B=2 gives fas=9 for addition or fas=5 for subtraction.
+* Its highest bit supplies the sign flag; checking all its bits detects zero.
+* fas is a signal carrying an answer, not a register that stores it.
 .subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
 Xbx b[31:0] op0#32 bx[31:0] xor2
 Xadd a[31:0] bx[31:0] op0 fas[31:0] cout[31:30] add32
@@ -150,9 +176,9 @@ Xnd2 nz3 nz2 nz1 nz0 zb nand4
 Xz za zb z nor2
 .ends
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 10. Comparisons: return 1 for true, 0 for false ---
+* Uses subtraction to check equal, less than, or less than or equal.
+* Combining the sign and overflow flags keeps signed comparisons correct.
 .subckt cmp32 n v z op[2:1] fcmp[31:0]
 Xlt n v lt xor2
 Xeq op1 z eqn nand2
@@ -163,16 +189,17 @@ Xzero zero constant0
 Xgnd zero#31 fcmp[31:1] join
 .ends
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 11. Bit-by-bit logic: AND, OR, XOR ---
+* Each pair of input bits selects an answer from the four op bits.
+* mux means selector: it passes through the chosen input.
 .subckt bool32 a[31:0] b[31:0] op[3:0] fbool[31:0]
 Xmux a[31:0] b[31:0] op0#32 op1#32 op2#32 op3#32 fbool[31:0] mux4
 .ends
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 12. Shifts: move the bits left or right ---
+* Combine moves of 16, 8, 4, 2, and 1 positions to get the requested distance.
+* Reversing the bit order lets the same circuit also shift left.
+* Signed right shifts copy the sign bit into empty spaces; other shifts use zero.
 .subckt shift32 a[31:0] b[4:0] op[1:0] fshift[31:0]
 Xfill op1 a31 fill and2
 
@@ -187,10 +214,12 @@ Xs0 b0#32 yd[31:0] fill yd[31:1] ye[31:0] mux2
 Xrout op0#32 ye[0:31] ye[31:0] fshift[31:0] mux2
 .ends
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 13. ALU: the processor's calculator ---
+* The blocks above work in parallel. alufn selects which answer to keep.
+* Its first two bits choose arithmetic, logic, shifting, or comparison.
 .subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0]
+* fas is one possible answer. The ALU uses it only for arithmetic;
+* other instructions select a comparison, shift, or bit-by-bit logic answer.
 Xas a[31:0] b[31:0] alufn0 fas[31:0] n v z as32
 Xcmp n v z alufn[2:1] fcmp[31:0] cmp32
 Xshift a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
@@ -213,57 +242,104 @@ Xf1 tas[31:1] tsh[31:1] fbooln[31:1] f[31:1] nand3
 Xf0 tas0 tsh0 tcm fbooln0 f0 nand4
 .ends
 
+* --- 14. PC: remember which instruction comes next ---
+* This design uses 9 bits because 2^9 = 512, matching its 512-byte memory.
+* This is a simplification chosen here; a full-width Beta PC uses 32 bits.
+* Only 7 PC bits need storage: the last 2 are fixed at zero because each
+* instruction starts at a multiple of 4 (0, 4, 8, ... 508).
+* The next address after 508 wraps to 0 instead of preserving address 512.
+* Instructions occupy 4 bytes. Bits [8:2] count whole instructions,
+* so adding 1 here means moving forward 4 bytes.
+* A branch adds c in instruction-sized steps, keeping only the low 7 bits.
+* Example: PC=8 gives PC+4=12. If c=2, the branch target is 12+2*4=20.
+* pc4 is the normal next address; bt is the branch target.
 Xpcinc pc[8:2] gnd#6 vdd gnd pc4[8:2] add7
 Xpcbr  pc4[8:2] c[6:0] gnd bt[8:2] add7
 
+* pcsel chooses: 00 next instruction, 01 branch, 10 jump, 11 stay here.
+* Jump addresses come from the value in Ra, using only bits [8:2].
+* pcn carries the selected next address; selecting the current PC holds it
+* in place for HALT. The clock still runs, but execution does not advance.
 Xpcsel pcsel0#7 pcsel1#7 pc4[8:2] bt[8:2] rd1_[8:2] pc[8:2] pcn[8:2] mux4
 
+* Reset selects address zero. On each rising edge, store the chosen address.
+* The last two address bits stay zero so instructions start on 4-byte boundaries.
 Xpcrst reset#7 pcn[8:2] gnd#7 pcd[8:2] mux2
 Xpcreg pcd[8:2] clk#7 pc[8:2] dreg
 .connect 0 pc[1:0]
 
+* --- 15. Choose the working values ---
+* This section connects register choices, branch checks, and the calculator.
+* Lowercase ra/rb/rc are register NUMBERS, like labels on storage boxes.
+* rd1_/rd2_ are the actual VALUES taken out of the selected boxes.
+* Xjra chooses Ra for the first read. Xjwa names Rc as the write destination;
+* naming a destination does not write anything until werf permits it.
+* Xra2 chooses the second read: ra2sel=0 selects Rb, 1 selects Rc.
+* ST needs Rc here because Rc holds the value to store in memory.
 Xjra  ra[4:0] ra1_[4:0] join
 Xjwa  rc[4:0] wa[4:0]   join
 Xra2  ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
 
+* Check whether the value in Ra is zero, to decide conditional branches.
+* This check is separate from the calculator's zero-result flag.
+* Each nor4 checks four bits: its answer is 1 only if all four are zero.
+* The remaining gates combine those checks: z=1 only if ALL 32 bits are zero.
+* BEQ branches when z=1; BNE branches when z=0.
 Xznor rd1_[31:0:4] rd1_[30:0:4] rd1_[29:0:4] rd1_[28:0:4] zn[7:0] nor4
 Xznd1 zn7 zn6 zn5 zn4 za nand4
 Xznd2 zn3 zn2 zn1 zn0 zb nand4
 Xzout za zb z nor2
 
+* bsel chooses a register value or the instruction's constant as input B.
+* bsel=0 uses rd2_; bsel=1 uses the instruction's constant c.
+* c has only 16 bits. Repeating its sign bit expands it to 32 bits without
+* changing its value: for example, -1 stays -1 instead of becoming 65535.
+* bb carries the selected input B. Input A is always the value rd1_.
+* Xalu performs the operation chosen by alufn and places its answer on alu.
 Xbsel bsel#32 rd2_[31:0] c15#16 c[15:0] bb[31:0] mux2
 Xalu  rd1_[31:0] bb[31:0] alufn[5:0] alu[31:0] alu32
+
+* For a load or store, the calculated answer is the memory address.
+* Example: ST with Ra=100 and c=8 calculates memory address 108.
+* The value saved there comes from Rc (now on rd2_), not from that address sum.
+* mema carries the address; memwd carries the value to save. wr permits the write.
+* Only the low 9 address bits are connected, matching the 512-byte memory.
 Xjmem alu[8:0] mema[8:0] join
 Xjmwd rd2_[31:0] memwd[31:0] join
 
+* --- 16. Choose the value to save in a register ---
+* wdsel: 00 saves the next address, 01 the calculation, 10 the loaded data.
+* 11 also selects the calculation, but the control table does not use it.
+* The saved next address is limited to 9 bits in this version.
 Xwdsel wdsel0#32 wdsel1#32 gnd#23 pc4[8:2] gnd#2 alu[31:0] memrd[31:0] alu[31:0] wd[31:0] mux4
 
-*******************************************************************************
-
-*******************************************************************************
+* --- 17. Optional display helpers ---
+* Group related control signals so they can be viewed together when debugging.
 Xjdisplaya ra2_b_wdsel[3:0] ra2sel bsel wdsel[1:0] join
 Xjdisplayb wr_werf[1:0]     wr werf                join
 
-*******************************************************************************
+* A separate indicator shows when the control table chooses to stay here.
+* Indicates PC hold for HALT or an unsupported instruction.
+Xhalt pcsel1 pcsel0 halted and2
 
-*******************************************************************************
+* --- 18. Run the simulation and show the results ---
+* For the current lab7.bin sample, output becomes 3 and PC stops at 0x1C.
+* x shows hexadecimal addresses; d shows decimal; sd allows negative numbers.
 .tran 1280ns
-.plot clk
-.plot reset
-.plot pc[8:0]
+.plot clk reset
+.plot x(pc[8:0])
 .plot betaop(opcode[5:0])
+* .plot b(pcsel[1:0])
+* .plot z
+.plot halted
 .plot d(ra[4:0])
-.plot d(rb[4:0])
+.plot d(ra2_[4:0])
 .plot d(rc[4:0])
-.plot sd(c[15:0])
-.plot b(pcsel[1:0])
-.plot b(ra2_b_wdsel[3:0])
-.plot b(alufn[5:0])
-.plot b(wr_werf[1:0])
-.plot werf
 .plot sd(rd1_[31:0])
 .plot sd(rd2_[31:0])
-.plot sd(wd[31:0])
-.plot d(mema[8:0])
-.plot sd(memrd[31:0])
-.plot sd(memwd[31:0])
+.plot sd(alu[31:0])
+* .plot wr
+* .plot werf
+* .plot x(mema[8:0])
+* .plot sd(memwd[31:0])
+.plot sd(output[31:0])

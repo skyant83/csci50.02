@@ -16,21 +16,20 @@
 
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-.include beta.uasm    | include the standard predefined macros
+.include beta.uasm          | include the standard predefined macros
 
-  LD(r31, INPUT, r0)  | r0 = memory[r31 + INPUT] (the array length)
-                      |  note: r31 is a special register that is always
-                      |   zero; you can shorten this to LD(INPUT, r0)
-LOOP:
-  ADDC(r1, 4, r1)     | r1 = r1 + 4 (note: r1 is initially 0)
-  LD(r1, INPUT, r2)   | r2 = memory[r1 + INPUT]
-  ADD(r3, r2, r3)     | r3 = r3 + r2 (keep a running total in r3)
-  SUBC(r0, 1, r0)     | r0 = r0 - 1 (decrement the array counter)
-  BNE(r0, LOOP)       | (B)ranch back to LOOP if r0 is (N)ot (E)qual to 0
+        LD(r31, INPUT, r0)  | r0 = memory[r31 + INPUT] (the array length)
+                            |  note: r31 is a special register that is always
+                            |   zero; you can shorten this to LD(INPUT, r0)
+LOOP:   ADDC(r1, 4, r1)     | r1 = r1 + 4 (note: r1 is initially 0)
+        LD(r1, INPUT, r2)   | r2 = memory[r1 + INPUT]
+        ADD(r3, r2, r3)     | r3 = r3 + r2 (keep a running total in r3)
+        SUBC(r0, 1, r0)     | r0 = r0 - 1 (decrement the array counter)
+        BNE(r0, LOOP)       | (B)ranch back to LOOP if r0 is (N)ot (E)qual to 0
 
-ST(r3, OUTPUT, r31) | otherwise, store r3 into memory[OUTPUT + r31]
-                    |  note: you can shorten this to ST(r3, OUTPUT)
-HALT()              | then, finish execution
+        ST(r3, OUTPUT, r31) | otherwise, store r3 into memory[OUTPUT + r31]
+                            |  note: you can shorten this to ST(r3, OUTPUT)
+        HALT()              | then, finish execution
 
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
@@ -45,12 +44,12 @@ HALT()              | then, finish execution
 | INPUT marks the beginning of the memory block containing the hardcoded
 | user "input".
 INPUT:
-  LONG(5)             | <-- length of the array
-  LONG(4)             | <-- first element of the array
-  LONG(2)
-  LONG(0)
-  LONG(6)
-  LONG(-9)            | <-- last element of the array
+        LONG(5)             | <-- length of the array
+        LONG(4)             | <-- first element of the array
+        LONG(2)
+        LONG(0)
+        LONG(6)
+        LONG(-9)            | <-- last element of the array
 
 | OUTPUT marks the memory block where the output will appear.
 | Nothing follows the label because the output will be written by the program.
